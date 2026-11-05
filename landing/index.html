@@ -19,9 +19,6 @@
   .lead { font-size: 1.15rem; color: var(--ink2); margin: 0 0 24px; max-width: 40em; }
   .cta { display:inline-block; background:var(--btn); color:#fff; text-decoration:none; font-weight:600; padding: 14px 28px; font-size:1.1rem; border-radius:0; }
   .cta:hover, .cta:focus-visible { background:#4b5ff0; outline: 2px solid var(--accent); outline-offset: 2px; }
-  .badges { list-style:none; padding:0; margin: 28px 0 0; display:flex; flex-wrap:wrap; gap:8px; }
-  .badges li { background:var(--bg2); border:1px solid var(--rule); padding:6px 12px; font-size:.92rem; }
-  .badges li::before { content:"✓ "; color:var(--live); font-weight:700; }
   section { padding: 36px 0; border-bottom: 1px solid var(--rule); }
   h2 { font-size: 1.5rem; margin: 0 0 16px; }
   h3 { font-size: 1.1rem; margin: 0 0 4px; }
@@ -39,24 +36,41 @@
   summary { cursor:pointer; font-weight:600; }
   details p { margin: 10px 0 0; color: var(--ink2); }
   a { color: var(--accent); }
+  .shot { margin: 0; }
+  .shot img { display:block; width:100%; height:auto; border:1px solid var(--rule); background:var(--bg2); }
+  .shot figcaption { color:var(--ink3); font-size:.9rem; margin-top:6px; }
+  .modes { display:grid; grid-template-columns: 1fr; gap: 28px; }
+  .mode h2 { margin-bottom: 6px; }
+  .mode > p { color: var(--ink2); max-width: 44em; }
+  .mobile-row { display:grid; grid-template-columns: minmax(0,220px) 1fr; gap: 24px; align-items:center; }
+  @media (max-width: 600px) { .mobile-row { grid-template-columns: 1fr; } .mobile-row .shot { max-width: 260px; } }
   footer { padding: 28px 0 48px; color: var(--ink3); font-size:.9rem; }
 </style>
 </head>
 <body>
 <header class="hero"><div class="wrap">
   <h1>web<span>DIGI</span></h1>
-  <p class="lead">Spectrum, waterfall and digital-mode decoders for radio and audio signals, right in your browser. Open the page, tap <em>Start listening</em>, and you're on the air.</p>
+  <p class="lead">Decode <strong>CW (Morse)</strong> and <strong>Hellschreiber</strong> straight from your radio's audio, with a live spectrum and waterfall. Open the page, tap <em>Start listening</em>, and watch the stations appear.</p>
   <a class="cta" href="app/">Launch webDIGI →</a>
-  <ul class="badges">
-    <li>No installation</li>
-    <li>Works on your phone</li>
-    <li>Works offline after the first visit</li>
-    <li>No account, no server</li>
-    <li>Audio never leaves your device</li>
-  </ul>
 </div></header>
 
 <main class="wrap">
+
+<section>
+  <h2>Digital modes</h2>
+  <div class="modes">
+    <div class="mode">
+      <h3 style="font-size:1.3rem">CW skimmer</h3>
+      <p>Finds every Morse carrier in the passband and decodes them all at the same time. Each station is listed with its frequency, speed (WPM), signal level and text, and callsigns are validated and highlighted. A second-look pass re-decodes weak signals. Click the spectrum to decode any frequency by hand, or send CW yourself.</p>
+      <figure class="shot"><img src="img/desk-cw.webp" width="1440" height="860" alt="webDIGI on desktop: waterfall with four CW carriers and a table of decoded stations with callsigns EA1ABC, W1AW and PY2XYZ" loading="lazy"><figcaption>Three stations decoded at once, from a simulated test signal.</figcaption></figure>
+    </div>
+    <div class="mode">
+      <h3 style="font-size:1.3rem">Hellschreiber</h3>
+      <p>Feld-Hell and F-Hell are read by eye: the text appears as a printed strip, line by line, straight from the waterfall. Tune by clicking the spectrum, trim the slant, switch to paper-tape colours, and transmit your own text.</p>
+      <figure class="shot"><img src="img/desk-hell.webp" width="1440" height="860" alt="webDIGI on desktop: Feld-Hell signal in the waterfall and the text CQ CQ DE LU1AAT HELLO FROM WEBDIGI printed on the strip" loading="lazy"><figcaption>Feld-Hell text printed on the strip, from a simulated test signal.</figcaption></figure>
+    </div>
+  </div>
+</section>
 
 <section>
   <div class="callout">
@@ -66,11 +80,9 @@
 </section>
 
 <section>
-  <h2>What it does</h2>
+  <h2>Everything else</h2>
   <div class="grid">
     <div class="card"><span class="ic">≋</span><h3>Spectrum &amp; waterfall</h3><p>Live spectrum with a scrolling waterfall. Zoom, pan, linear or log frequency scale, one-tap <em>Auto adjust levels</em>, colour themes.</p></div>
-    <div class="card"><span class="ic">CW</span><h3>CW skimmer</h3><p>Finds Morse carriers automatically and decodes them all at once, with callsign validation and a second-look re-decode. Click the spectrum to decode any frequency by hand. Can also send CW.</p></div>
-    <div class="card"><span class="ic">Hell</span><h3>Hellschreiber</h3><p>Feld-Hell and related modes shown as a printed strip you read by eye, with row alignment and slant trim. Can also transmit text.</p></div>
     <div class="card"><span class="ic">★</span><h3>Bookmarks</h3><p>Save frequencies, watch their levels live, set alarms that beep when a signal appears. Import and export your list.</p></div>
     <div class="card"><span class="ic">●</span><h3>Recordings</h3><p>Record what you hear, play it back and download it as a WAV file.</p></div>
     <div class="card"><span class="ic">⚙</span><h3>Devices &amp; settings</h3><p>Pick the input and output device, see their capabilities, choose English or Spanish, switch between dark and light themes, back up your settings.</p></div>
@@ -91,12 +103,15 @@
 
 <section>
   <h2>On your phone</h2>
+  <div class="mobile-row">
+  <figure class="shot"><img src="img/mob-cw.webp" width="780" height="1600" alt="webDIGI on a phone: spectrum, waterfall and the CW skimmer panel" loading="lazy"><figcaption>The same app on a phone.</figcaption></figure>
   <ol class="steps">
     <li>Open the link in Chrome (Android) or Safari (iPhone/iPad). Microphone access needs the page to be served over HTTPS, which this site is.</li>
     <li>Allow the microphone when asked. Tap <em>Start listening</em>.</li>
     <li><strong>Optional:</strong> <em>Add to Home screen</em> (Chrome menu ⋮, or Safari Share → Add to Home Screen). It then opens full-screen like a native app.</li>
     <li>Use the phone in landscape for a wider waterfall. Collapse the Modules column to get more room.</li>
   </ol>
+  </div>
 </section>
 
 <section>
