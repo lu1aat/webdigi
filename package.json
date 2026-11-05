@@ -1,0 +1,25 @@
+{
+  "name": "webdigi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Base template for offline-capable, browser-only audio apps: capture, waterfall, decoders, pluggable modules",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "dev:https": "vite --mode https",
+    "preview": "vite preview",
+    "preview:https": "vite preview --mode https",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@vitejs/plugin-basic-ssl": "^1.2.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,5 @@
+.hell-strip { display: block; width: 100%; background: var(--plate); border: 1px solid var(--rule); image-rendering: pixelated; }
+.hell-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+.hell-status { flex: 1; font: 0.75rem var(--font-mono); color: var(--ink-2); }
+.hell-text { flex: 1; min-width: 0; height: 2rem; padding: 0 0.5rem; background: var(--paper-2); color: var(--ink); border: 1px solid var(--rule); font: 0.875rem var(--font-mono); text-transform: uppercase; }
+.hell-loop { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; font-size: 0.8125rem; color: var(--ink-2); }

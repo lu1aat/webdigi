@@ -1,0 +1,15 @@
+.toolbar-slot { display: flex; align-items: center; gap: 0.5rem; }
+/* soundradar Record button: solid red, white dot to start, white square to stop. */
+.rec-btn { display: inline-flex; align-items: center; gap: 0.5rem; height: 2.1rem; padding: 0 0.85rem; background: var(--flag); color: #fff; border: 0; font-size: 0.8125rem; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+.rec-btn:hover { filter: brightness(1.08); }
+.rec-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.rec-dot { flex-shrink: 0; width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #fff; }
+.rec-btn.on .rec-dot { border-radius: 1px; animation: rec-pulse 1.15s ease-in-out infinite; }
+@keyframes rec-pulse { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .rec-btn.on .rec-dot { animation: none; } }
+
+.rec-row { display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0; border-bottom: 1px solid var(--rule); }
+.rec-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.rec-name { font-weight: 600; }
+.rec-meta { font: 0.6875rem var(--font-mono); color: var(--ink-3); }
+.rec-play { color: var(--accent); }

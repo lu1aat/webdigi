@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>webDIGI — digital radio modes in your browser</title>
+<meta name="description" content="Spectrum, waterfall, CW skimmer and Hellschreiber decoding in your browser. No installation, works on your phone, runs offline.">
+<meta name="theme-color" content="#171b21">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#171b21; --bg2:#1e232b; --bg3:#262c35; --ink:#e7ecf2; --ink2:#a4b0bd; --ink3:#7b8794; --accent:#7d90ff; --btn:#3a4fe0; --live:#23a05a; --rule:#313844; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+  header.hero { padding: 56px 0 40px; border-bottom: 1px solid var(--rule); }
+  h1 { font-size: clamp(2rem, 7vw, 3.2rem); line-height:1.1; margin:0 0 12px; letter-spacing:-.02em; }
+  h1 span { color: var(--accent); }
+  .lead { font-size: 1.15rem; color: var(--ink2); margin: 0 0 24px; max-width: 40em; }
+  .cta { display:inline-block; background:var(--btn); color:#fff; text-decoration:none; font-weight:600; padding: 14px 28px; font-size:1.1rem; border-radius:0; }
+  .cta:hover, .cta:focus-visible { background:#4b5ff0; outline: 2px solid var(--accent); outline-offset: 2px; }
+  .badges { list-style:none; padding:0; margin: 28px 0 0; display:flex; flex-wrap:wrap; gap:8px; }
+  .badges li { background:var(--bg2); border:1px solid var(--rule); padding:6px 12px; font-size:.92rem; }
+  .badges li::before { content:"✓ "; color:var(--live); font-weight:700; }
+  section { padding: 36px 0; border-bottom: 1px solid var(--rule); }
+  h2 { font-size: 1.5rem; margin: 0 0 16px; }
+  h3 { font-size: 1.1rem; margin: 0 0 4px; }
+  p { margin: 0 0 12px; }
+  .callout { background:var(--bg2); border-left: 4px solid var(--live); padding: 16px 18px; }
+  .callout strong { color: #fff; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card { background:var(--bg2); border:1px solid var(--rule); padding: 16px; }
+  .card .ic { display:inline-block; min-width:2.2em; text-align:center; background:var(--bg3); color:var(--accent); font-weight:700; padding:2px 6px; margin-bottom:8px; font-family: ui-monospace,Menlo,monospace; }
+  .card p { color: var(--ink2); margin:0; font-size:.95rem; }
+  ol.steps { padding-left: 1.3em; margin: 0; }
+  ol.steps li { margin-bottom: 10px; }
+  kbd { background:var(--bg3); border:1px solid var(--rule); padding:0 6px; font-family: ui-monospace,Menlo,monospace; font-size:.9em; }
+  details { background:var(--bg2); border:1px solid var(--rule); padding: 12px 16px; margin-bottom: 8px; }
+  summary { cursor:pointer; font-weight:600; }
+  details p { margin: 10px 0 0; color: var(--ink2); }
+  a { color: var(--accent); }
+  footer { padding: 28px 0 48px; color: var(--ink3); font-size:.9rem; }
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <h1>web<span>DIGI</span></h1>
+  <p class="lead">Spectrum, waterfall and digital-mode decoders for radio and audio signals, right in your browser. Open the page, tap <em>Start listening</em>, and you're on the air.</p>
+  <a class="cta" href="app/">Launch webDIGI →</a>
+  <ul class="badges">
+    <li>No installation</li>
+    <li>Works on your phone</li>
+    <li>Works offline after the first visit</li>
+    <li>No account, no server</li>
+    <li>Audio never leaves your device</li>
+  </ul>
+</div></header>
+
+<main class="wrap">
+
+<section>
+  <div class="callout">
+    <p><strong>Nothing to install.</strong> No app store, no download, no drivers, no sign-up. webDIGI is a web page: open the link on your computer, tablet or <strong>mobile phone</strong> and it works.</p>
+    <p style="margin:0">On a phone you can optionally add it to your home screen (see below) so it opens like an app and keeps working without a connection.</p>
+  </div>
+</section>
+
+<section>
+  <h2>What it does</h2>
+  <div class="grid">
+    <div class="card"><span class="ic">≋</span><h3>Spectrum &amp; waterfall</h3><p>Live spectrum with a scrolling waterfall. Zoom, pan, linear or log frequency scale, one-tap <em>Auto adjust levels</em>, colour themes.</p></div>
+    <div class="card"><span class="ic">CW</span><h3>CW skimmer</h3><p>Finds Morse carriers automatically and decodes them all at once, with callsign validation and a second-look re-decode. Click the spectrum to decode any frequency by hand. Can also send CW.</p></div>
+    <div class="card"><span class="ic">Hell</span><h3>Hellschreiber</h3><p>Feld-Hell and related modes shown as a printed strip you read by eye, with row alignment and slant trim. Can also transmit text.</p></div>
+    <div class="card"><span class="ic">★</span><h3>Bookmarks</h3><p>Save frequencies, watch their levels live, set alarms that beep when a signal appears. Import and export your list.</p></div>
+    <div class="card"><span class="ic">●</span><h3>Recordings</h3><p>Record what you hear, play it back and download it as a WAV file.</p></div>
+    <div class="card"><span class="ic">⚙</span><h3>Devices &amp; settings</h3><p>Pick the input and output device, see their capabilities, choose English or Spanish, switch between dark and light themes, back up your settings.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>How to use it</h2>
+  <ol class="steps">
+    <li><strong>Open <a href="app/">the app</a>.</strong> That's the whole installation.</li>
+    <li><strong>Tap <em>Start listening</em></strong> and allow microphone access when your browser asks. Feed it from a radio's audio output (line-in or a cable into the mic jack), or hold the phone near a speaker.</li>
+    <li><strong>Watch the spectrum and waterfall.</strong> Signals appear as bright traces. Zoom with the mouse wheel or the <kbd>−</kbd> <kbd>+</kbd> buttons; pan with <kbd>◄</kbd> <kbd>►</kbd>. If the picture is too dark or washed out, press <kbd>A</kbd> (<em>Auto adjust levels</em>).</li>
+    <li><strong>Tap the spectrum</strong> to pick a frequency. With the CW skimmer on, decoded stations are listed with callsign, speed and text.</li>
+    <li><strong>Choose a module</strong> in the Modules column (the left side; tap the arrow to collapse it). Each module has an on/off switch, and the selected one opens its panel under the waterfall. Drag the splitter to resize.</li>
+    <li><strong>Record</strong> with the Record button in the top bar when the Recordings module is on.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>On your phone</h2>
+  <ol class="steps">
+    <li>Open the link in Chrome (Android) or Safari (iPhone/iPad). Microphone access needs the page to be served over HTTPS, which this site is.</li>
+    <li>Allow the microphone when asked. Tap <em>Start listening</em>.</li>
+    <li><strong>Optional:</strong> <em>Add to Home screen</em> (Chrome menu ⋮, or Safari Share → Add to Home Screen). It then opens full-screen like a native app.</li>
+    <li>Use the phone in landscape for a wider waterfall. Collapse the Modules column to get more room.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Offline use</h2>
+  <p>After one online visit the app is cached by your browser and runs with no connection at all. It makes no network requests while you use it.</p>
+</section>
+
+<section>
+  <h2>Privacy</h2>
+  <p>Everything happens inside your browser. There is no backend: audio is never uploaded, and your settings, bookmarks and recordings stay on your device. Recordings are kept in memory only and disappear when you close the page, so download the ones you want.</p>
+</section>
+
+<section style="border:0">
+  <h2>Questions</h2>
+  <details><summary>The microphone doesn't start.</summary><p>Check that the browser has permission for this site (padlock icon in the address bar) and that no other app is using the microphone. Then reload and press <em>Start listening</em> again.</p></details>
+  <details><summary>I see nothing in the waterfall.</summary><p>Press <kbd>A</kbd> (<em>Auto adjust levels</em>) while a signal is present, or set the minimum and maximum dB in the Spectrum options. Check the input device in the top bar.</p></details>
+  <details><summary>Which browsers work?</summary><p>Current Chrome, Edge, Firefox and Safari on desktop and mobile.</p></details>
+  <details><summary>Does it cost anything?</summary><p>No. It is free and open source (MIT).</p></details>
+</section>
+
+</main>
+<footer><div class="wrap">webDIGI · MIT licensed · <a href="https://github.com/lu1aat/webdigi">Source on GitHub</a></div></footer>
+</body>
+</html>

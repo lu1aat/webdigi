@@ -1,0 +1,43 @@
+/*
+ * Theme file. The filename (without .css) is the theme id and is picked up
+ * automatically (see src/core/theme.ts). Copy this file to add a theme and
+ * define every token below under your own [data-theme='<id>'].
+ *
+ * Idea (borrowed from soundradar): the chrome is "paper", the plots are dark
+ * "plates" inset into it, so a spectrogram always has the dark ground its
+ * colour map needs. Canvas tokens (--plate*, --wf-*, --paper-2, --ink-3, --rule-2)
+ * are read by renderers: the --wf-* stops must be 6-digit hex.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* chrome */
+  --paper: #171b21;
+  --paper-2: #1e232b;
+  --paper-3: #262c35;
+  --rule: #333b45;
+  --rule-2: #4b5563;
+  --ink: #e7ecf2;
+  --ink-2: #a4b0bd;
+  --ink-3: #7b8794;
+  --accent: #7d90ff; /* selection, active state, axes */
+  --accent-soft: #232a4d;
+  --flag: #ff5a4d; /* errors, removal, recording */
+  --live: #23a05a; /* the app is listening */
+  --shadow-plate: inset 0 0 0 1px #000, 0 2px 10px rgba(0, 0, 0, 0.5);
+
+  /* plates: spectrum + waterfall */
+  --plate: #0c1016;
+  --plate-grid: rgba(226, 232, 240, 0.11);
+  --plate-text: rgba(226, 232, 240, 0.7);
+  --plate-trace: #8ea6ff;
+  --plate-fill: rgba(142, 166, 255, 0.2);
+  --plate-peak: rgba(142, 166, 255, 0.45);
+  --plate-mark: #ffb45a; /* markers and the focused frequency */
+
+  /* waterfall colour map, weakest to strongest: one hue, the accent's, so it matches the wordmark */
+  --wf-0: #05070a;
+  --wf-1: #1a2270;
+  --wf-2: #7d90ff;
+  --wf-3: #eef1ff;
+}

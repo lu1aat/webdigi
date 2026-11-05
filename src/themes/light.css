@@ -1,0 +1,31 @@
+/* Light theme: soundradar's default "chart paper". Plates stay dark (see dark.css for token docs). */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --paper: #e9ebef;
+  --paper-2: #f4f6f8;
+  --paper-3: #ffffff;
+  --rule: #ccd2da;
+  --rule-2: #a3adba;
+  --ink: #101820;
+  --ink-2: #4c5867;
+  --ink-3: #7a8794;
+  --accent: #2a3fd4;
+  --accent-soft: #e0e4fb;
+  --flag: #cf2b21;
+  --live: #1d8348;
+  --shadow-plate: 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 10px rgba(16, 24, 32, 0.14);
+
+  --plate: #0c1016;
+  --plate-grid: rgba(226, 232, 240, 0.11);
+  --plate-text: rgba(226, 232, 240, 0.7);
+  --plate-trace: #8ea6ff;
+  --plate-fill: rgba(142, 166, 255, 0.2);
+  --plate-peak: rgba(142, 166, 255, 0.45);
+  --plate-mark: #ffb45a;
+
+  --wf-0: #05070a;
+  --wf-1: #1a2270;
+  --wf-2: #7d90ff;
+  --wf-3: #eef1ff;
+}

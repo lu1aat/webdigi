@@ -1,0 +1,14 @@
+.spectrum { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; outline: none; }
+.plate { position: relative; min-height: 0; background: var(--plate); border-radius: 4px; box-shadow: var(--shadow-plate); overflow: hidden; }
+.plate canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+.plate canvas.panning { cursor: grabbing; }
+.plate.spec { flex: 0 0 35%; }
+.plate.wf { flex: 1; }
+.spectrum.no-wf .plate.spec { flex: 1; }
+.spectrum.no-wf .plate.wf { display: none; }
+canvas.ruler { flex: none; cursor: row-resize; touch-action: none; display: block; width: 100%; height: 1.75rem; }
+.spectrum-readout { position: absolute; top: 6px; right: 8px; padding: 1px 6px; background: rgba(12, 16, 22, 0.82); color: #e7ecf2; font: 0.6875rem ui-monospace, Menlo, Consolas, monospace; border-radius: 3px; pointer-events: none; }
+.spectrum-readout:empty { display: none; }
+.spectrum-pad { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; opacity: 0.8; }
+.spectrum-pad:hover { opacity: 1; }
+.spectrum-pad .btn { width: 30px; height: 30px; padding: 0; background: rgba(12, 16, 22, 0.82); color: #e7ecf2; border-color: rgba(226, 232, 240, 0.25); }
