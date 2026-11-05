@@ -26,16 +26,4 @@ washed out.
 
 On a phone, use "Add to Home screen" to open it like an app.
 
-## Running from source
-
-```bash
-npm install
-npm run dev      # http://localhost:5173
-npm run build    # dist/ works from any static host
-npm test
-```
-
-Architecture, how to write a module, themes, offline behaviour and the CSP are in
-[AGENTS.md](./AGENTS.md).
-
 MIT licensed.
