@@ -32,7 +32,7 @@ function hex(s: string): [number, number, number] {
 export function readTheme(): CanvasTheme {
   const cs = getComputedStyle(document.documentElement)
   const v = (n: string) => cs.getPropertyValue(n).trim()
-  const stops = [v('--wf-0'), v('--wf-1'), v('--wf-2'), v('--wf-3')].map(hex)
+  const stops = ['--wf-0', '--wf-1', '--wf-2', '--wf-3', '--wf-4', '--wf-5'].map((n) => hex(v(n)))
   const lut = new Uint32Array(256)
   for (let i = 0; i < 256; i++) {
     const p = (i / 255) * (stops.length - 1)

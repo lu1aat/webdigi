@@ -35,9 +35,11 @@
   --plate-peak: rgba(142, 166, 255, 0.45);
   --plate-mark: #ffb45a; /* markers and the focused frequency */
 
-  /* waterfall colour map, weakest to strongest: one hue, the accent's, so it matches the wordmark */
-  --wf-0: #05070a;
-  --wf-1: #1a2270;
-  --wf-2: #7d90ff;
-  --wf-3: #eef1ff;
+  /* waterfall colour map, weakest to strongest: the classic SDR ramp (as in audiomesh): navy, blue, cyan, green, yellow, red */
+  --wf-0: #000028;
+  --wf-1: #0028a0;
+  --wf-2: #00aac8;
+  --wf-3: #28c83c;
+  --wf-4: #f0dc28;
+  --wf-5: #e61e14;
 }
