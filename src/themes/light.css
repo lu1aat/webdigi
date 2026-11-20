@@ -9,14 +9,22 @@
   --rule-2: #a3adba;
   --ink: #101820;
   --ink-2: #4c5867;
-  --ink-3: #7a8794;
+  --ink-3: #5f6b79;
   --accent: #2a3fd4;
   --accent-soft: #e0e4fb;
   --flag: #cf2b21;
   --live: #1d8348;
   --shadow-plate: 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 10px rgba(16, 24, 32, 0.14);
+  --shadow-float: 4px 0 18px rgba(16, 24, 32, 0.18);
+
+  --on-fill: #ffffff;
+  --accent-fill: #2a3fd4;
+  --live-fill: #1d8348;
+  --flag-fill: #cf2b21;
 
   --plate: #0c1016;
+  --plate-ink: #e7ecf2;
+  --plate-veil: rgba(12, 16, 22, 0.88);
   --plate-grid: rgba(226, 232, 240, 0.11);
   --plate-text: rgba(226, 232, 240, 0.7);
   --plate-trace: #8ea6ff;

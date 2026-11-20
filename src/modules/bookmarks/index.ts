@@ -146,11 +146,17 @@ function mountPanel(host: HTMLElement, ctx: AppContext): () => void {
     const g = c.getContext('2d')!
     g.clearRect(0, 0, w, h)
     const hist = store.history(r.bm.id)
-    const finite = hist.filter(Number.isFinite)
-    if (finite.length < 2) return
+    let min = Infinity
+    let max = -Infinity
+    let count = 0
+    for (const v of hist) {
+      if (!Number.isFinite(v)) continue
+      count++
+      if (v < min) min = v
+      if (v > max) max = v
+    }
+    if (count < 2) return
     // floor the span so a steady reading is not magnified into noise
-    let min = Math.min(...finite)
-    let max = Math.max(...finite)
     if (max - min < 6) [min, max] = [(max + min) / 2 - 3, (max + min) / 2 + 3]
     g.strokeStyle = r.bm.color
     g.lineWidth = 1.2 * dpr

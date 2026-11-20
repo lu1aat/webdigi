@@ -138,9 +138,11 @@ function mountDisplay(host: HTMLElement, ctx: AppContext): () => void {
 
   let theme = ctx.theme()
   let dirty = true
+  /** Markers or geometry changed: the ruler and the spectrum plate need repainting even with no new data. */
+  let staticDirty = true
   const offTheme = ctx.onTheme(() => {
     theme = ctx.theme()
-    dirty = true
+    dirty = staticDirty = true
   })
 
   // --- settings cache (avoids localStorage reads every frame)
@@ -150,7 +152,7 @@ function mountDisplay(host: HTMLElement, ctx: AppContext): () => void {
     cfg[k] = settings.get(K(k))
     return settings.watch(K(k), (v) => {
       cfg[k] = v
-      dirty = true
+      dirty = staticDirty = true
     })
   })
 
@@ -172,11 +174,12 @@ function mountDisplay(host: HTMLElement, ctx: AppContext): () => void {
   // --- markers from other modules
   const markers = new Map<string, { hz: number; label?: string; color?: string; bw?: number; strong?: boolean }>()
   const offs = [
-    bus.on('marker:set', (m) => markers.set(m.id, { hz: m.hz, label: m.label, color: m.color, bw: m.bw, strong: m.strong })),
-    bus.on('marker:clear', (m) => markers.delete(m.id)),
+    bus.on('marker:set', (m) => (markers.set(m.id, { hz: m.hz, label: m.label, color: m.color, bw: m.bw, strong: m.strong }), (staticDirty = true))),
+    bus.on('marker:clear', (m) => (markers.delete(m.id), (staticDirty = true))),
     bus.on('view:focus', ({ hz }) => {
       markers.set('_focus', { hz })
-      setTimeout(() => markers.delete('_focus'), 2000)
+      staticDirty = true
+      setTimeout(() => (markers.delete('_focus'), (staticDirty = true)), 2000)
       const v = view()
       if (hz < v.lo || hz > v.hi) {
         // off-screen: slide the span (same width) so the frequency is centred
@@ -244,7 +247,7 @@ function mountDisplay(host: HTMLElement, ctx: AppContext): () => void {
       c.height = Math.max(1, Math.round(c.clientHeight * dpr()))
     }
     if (rows.length > wf.height) rows.length = wf.height
-    dirty = true
+    dirty = staticDirty = true
   }
   const ro = new ResizeObserver(fit)
   ro.observe(spec)
@@ -478,25 +481,38 @@ function mountDisplay(host: HTMLElement, ctx: AppContext): () => void {
   const paintRow = (px: Uint32Array, offset: number, r: Float32Array) => {
     const { min, span } = range()
     const w = wf.width
-    for (let x = 0; x < w; x++) px[offset + x] = theme.lut[Math.round(Math.min(1, Math.max(0, (r[cols[x]] - min) / span)) * 255)]
+    const lut = theme.lut
+    const k = 255 / span
+    for (let x = 0; x < w; x++) {
+      // NaN (no data) fails both tests and falls to 0
+      const i = ((r[cols[x]] - min) * k + 0.5) | 0
+      px[offset + x] = lut[i < 0 ? 0 : i > 255 ? 255 : i]
+    }
   }
+  // ImageData buffers are reused: allocating a full-canvas one per redraw and a 1-row one per frame is pure garbage.
+  let fullImg: ImageData | null = null
+  let rowImg: ImageData | null = null
   function redrawWaterfall() {
     const { width: w, height: h } = wf
     wc.fillStyle = theme.plate
     wc.fillRect(0, 0, w, h)
     if (!rows.length || cols.length !== w) return
-    const img = wc.createImageData(w, h)
-    const px = new Uint32Array(img.data.buffer)
-    for (let y = 0; y < Math.min(rows.length, h); y++) paintRow(px, y * w, rows[y])
-    wc.putImageData(img, 0, 0)
+    if (!fullImg || fullImg.width !== w || fullImg.height !== h) fullImg = wc.createImageData(w, h)
+    const px = new Uint32Array(fullImg.data.buffer)
+    const n = Math.min(rows.length, h)
+    for (let y = 0; y < n; y++) paintRow(px, y * w, rows[y])
+    px.fill(0, n * w) // rows we have no data for stay transparent over the plate colour
+    wc.putImageData(fullImg, 0, 0)
   }
   function scrollRow() {
     wc.drawImage(wf, 0, 1)
-    const row = wc.createImageData(wf.width, 1)
-    paintRow(new Uint32Array(row.data.buffer), 0, rows[0])
-    wc.putImageData(row, 0, 0)
+    if (!rowImg || rowImg.width !== wf.width) rowImg = wc.createImageData(wf.width, 1)
+    paintRow(new Uint32Array(rowImg.data.buffer), 0, rows[0])
+    wc.putImageData(rowImg, 0, 0)
   }
 
+  let lastViewKey = ''
+  let lastHadData = false
   let last = performance.now()
   let raf = 0
   const frame = (now: number) => {
@@ -526,8 +542,13 @@ function mountDisplay(host: HTMLElement, ctx: AppContext): () => void {
         rows.unshift(r)
       }
     }
-    drawSpectrum(d, v)
-    drawRuler(v)
+    // The plate and ruler only change with data, markers, theme or geometry: skip them while idle.
+    const viewKey = `${v.lo}|${v.hi}|${v.log}|${v.nyq}|${spec.width}`
+    if (viewKey !== lastViewKey) (lastViewKey = viewKey), (staticDirty = true)
+    if (d || lastHadData || staticDirty) drawSpectrum(d, v)
+    if (staticDirty) drawRuler(v)
+    lastHadData = !!d
+    staticDirty = false
     if (cfg.waterfall && wf.width > 1) {
       if (colsChanged || dirty) redrawWaterfall()
       else if (d && rows.length) scrollRow()

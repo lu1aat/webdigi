@@ -9,6 +9,10 @@ export interface PipelineStage {
   create(ctx: AudioContext): { input: AudioNode; output: AudioNode; dispose?(): void }
 }
 
+/** The level meter looks at this many samples, about 30 times a second: plenty for a meter, far cheaper than a 32k window every frame. */
+const LEVEL_WINDOW = 4096
+const LEVEL_EVERY_MS = 33
+
 export type SampleListener = (block: Float32Array, sampleRate: number) => void
 
 /**
@@ -67,21 +71,24 @@ export class AudioEngine {
   private lvl = { rmsDb: -Infinity, peakDb: -Infinity }
 
   /**
-   * Input level in dBFS (RMS and sample peak over the last FFT window), or null when not
-   * listening. Measured after the pipeline stages, i.e. on the signal the views analyse.
-   * Read at most once per frame, like spectrum().
+   * Input level in dBFS (RMS and sample peak over a recent window of up to LEVEL_WINDOW samples),
+   * or null when not listening. Measured after the pipeline stages, i.e. on the signal the views
+   * analyse. Refreshed at most every LEVEL_EVERY_MS, however often it is called.
    */
   level(): { rmsDb: number; peakDb: number } | null {
     const a = this.analyser
     if (!this.stream || !a) return null
     const now = performance.now()
-    if (now - this.tdAt > 4) {
-      if (this.td.length !== a.fftSize) this.td = new Float32Array(a.fftSize)
+    if (now - this.tdAt > LEVEL_EVERY_MS) {
+      const n = Math.min(a.fftSize, LEVEL_WINDOW)
+      if (this.td.length !== n) this.td = new Float32Array(n)
       a.getFloatTimeDomainData(this.td)
       let peak = 0
       let sum = 0
-      for (const x of this.td) {
-        peak = Math.max(peak, Math.abs(x))
+      for (let i = 0; i < n; i++) {
+        const x = this.td[i]
+        const ax = x < 0 ? -x : x
+        if (ax > peak) peak = ax
         sum += x * x
       }
       this.lvl = { rmsDb: 20 * Math.log10(Math.sqrt(sum / this.td.length)), peakDb: 20 * Math.log10(peak) }

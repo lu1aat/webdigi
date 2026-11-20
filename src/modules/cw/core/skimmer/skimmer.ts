@@ -60,6 +60,11 @@ export interface SkimmerOptions {
   noiseBlanker?: boolean;
   /** Emit a 'burst' event with the audio of each finished transmission, for council re-decoding. */
   bursts?: boolean;
+  /**
+   * Live use: start at most one new decoder per process() call (each start replays seconds of audio,
+   * which in one go would stall the UI). Offline decoding leaves this off so results are immediate.
+   */
+  staggerSpawns?: boolean;
   /** Receive bandwidth of each CW decoder, Hz. */
   bandwidth?: number;
   /** Called for every spectrogram row (waterfall). `row` is reused: copy it if you keep it. */
@@ -120,6 +125,8 @@ export class Skimmer {
   private ringPos = 0;
   private samples = 0;
   private events: SkimmerEvent[] = [];
+  /** Confirmed tracks waiting for their decoder (see `staggerSpawns`). */
+  private pending: Track[] = [];
   private readonly lastSpot = new Map<string, number>();
   private readonly spotAt: { freq: number; time: number }[] = [];
   private nextBurst = 1;
@@ -144,6 +151,7 @@ export class Skimmer {
   /** Feed audio samples; returns what happened (new carriers, text, spots, retired carriers). */
   process(input: Float32Array): SkimmerEvent[] {
     this.events = [];
+    this.startPending(1);
     const x = this.nb ? this.nb.process(input) : input;
     // 1. detection (may create channels, replaying history that does NOT yet include x)
     this.spectrogram.process(x, (row) => {
@@ -151,7 +159,7 @@ export class Skimmer {
       this.opts.onRow?.(row, t);
       const { spawned, retired } = this.tracker.push(row, t);
       for (const tr of retired) this.retire(tr.id);
-      for (const tr of spawned) this.spawn(tr);
+      for (const tr of spawned) this.opts.staggerSpawns ? this.pending.push(tr) : this.spawn(tr);
     });
     // 2. decoding of this block by all channels
     for (const l of [...this.live.values()]) { this.follow(l); this.feed(this.live.get(l.channel.id) ?? l, x); }
@@ -180,6 +188,7 @@ export class Skimmer {
   /** Close all channels (end of file): flushes pending characters and spots. */
   finish(): SkimmerEvent[] {
     this.events = [];
+    this.startPending(Infinity);
     for (const id of [...this.live.keys()]) this.retire(id);
     return this.events;
   }
@@ -195,8 +204,9 @@ export class Skimmer {
     const ex = new SpotExtractor({ ...this.opts.extractor, minWeight: 1, minConfidence: 0.6 });
     const words = segmentWords(chars);
     const spaced: DecodedChar[] = [];
+    const letters = chars.filter((c) => c.char !== ' ');
     for (const w of words) {
-      for (let k = 0; k < w.text.length; k++) spaced.push({ ...chars.filter((c) => c.char !== ' ')[w.start + k], char: w.text[k] });
+      for (let k = 0; k < w.text.length; k++) spaced.push({ ...letters[w.start + k], char: w.text[k] });
       spaced.push({ char: ' ', confidence: 1, time: 0, wpm: 0 });
     }
     // a lone callsign-shaped token is too often a misread: require a CQ context or a repetition
@@ -218,6 +228,17 @@ export class Skimmer {
       });
     }
     return this.events;
+  }
+
+  /** Start up to `max` queued decoders, skipping tracks that were retired or removed while waiting. */
+  private startPending(max: number): void {
+    let started = 0;
+    while (started < max && this.pending.length) {
+      const tr = this.pending.shift()!;
+      if (!this.tracker.tracks.has(tr.id) || this.live.has(tr.id)) continue;
+      this.spawn(tr);
+      started++;
+    }
   }
 
   private history(seconds: number): Float32Array {

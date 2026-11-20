@@ -18,6 +18,8 @@ export interface TrackerOptions {
   weakSnrDb?: number;
   /** Seconds without a refresh before a track is retired. */
   retireSeconds?: number;
+  /** Time constant (s) of the max-hold decay: how long a carrier that stopped keying still counts as present. */
+  holdSeconds?: number;
   /** Peaks this many dB below a stronger peak within ghostHz are treated as key-click sidebands. */
   ghostDb?: number;
   ghostHz?: number;
@@ -42,7 +44,7 @@ interface Candidate {
  * Finds and follows CW carriers in a stream of power-spectrum rows.
  *
  * Noise floor per bin = slow, outlier-clipped average. Since CW keys on and off, a
- * decaying max-hold (~0.8 s) stands in for "is something keyed here recently".
+ * decaying max-hold (holdSeconds, 0.8 s by default) stands in for "is something keyed here recently".
  * A local maximum above the floor that persists becomes a track; a track that has not
  * been seen for a few seconds is retired. Peaks sitting well below a much stronger
  * neighbour are ignored: those are key-click sidebands, not stations.
@@ -54,7 +56,7 @@ export class CarrierTracker {
   private rows = 0;
   private sinceEval = 0;
   private readonly evalEvery: number;
-  private readonly decay: number;
+  private decay: number;
   private readonly snrOffsetDb: number;
   private nextId = 1;
   private recentSpawns: Track[] = [];
@@ -66,13 +68,14 @@ export class CarrierTracker {
     private readonly bins: number,
     private readonly binHz: number,
     private readonly firstBin: number,
-    rowRate: number,
+    private readonly rowRate: number,
     opts: TrackerOptions = {},
   ) {
     this.o = {
       thresholdDb: opts.thresholdDb ?? 13,
       confirmHits: opts.confirmHits ?? 8,
       retireSeconds: opts.retireSeconds ?? 8,
+      holdSeconds: opts.holdSeconds ?? 0.8,
       ghostDb: opts.ghostDb ?? 20,
       ghostHz: opts.ghostHz ?? 150,
       farGhostDb: opts.farGhostDb ?? 32,
@@ -86,8 +89,14 @@ export class CarrierTracker {
     this.floor = new Float64Array(bins);
     this.hold = new Float64Array(bins);
     this.evalEvery = Math.max(1, Math.round(rowRate * 0.1));
-    this.decay = Math.exp(-1 / (0.8 * rowRate));
+    this.decay = Math.exp(-1 / (this.o.holdSeconds * rowRate));
     this.snrOffsetDb = 10 * Math.log10(2500 / (1.5 * binHz));
+  }
+
+  /** Change the max-hold decay while running; tracks and the noise floor are kept. */
+  setHoldSeconds(seconds: number): void {
+    this.o.holdSeconds = seconds;
+    this.decay = Math.exp(-1 / (seconds * this.rowRate));
   }
 
   /** Noise floor (linear power per bin), for display. */

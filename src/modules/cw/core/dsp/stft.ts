@@ -61,14 +61,15 @@ export class Spectrogram {
     const row = this.rowBuf ?? (this.rowBuf = new Float32Array(this.bins));
     for (let n = 0; n < x.length; n++) {
       this.ring[this.pos] = x[n];
-      this.pos = (this.pos + 1) % this.size;
+      if (++this.pos === this.size) this.pos = 0;
       if (this.filled < this.size) this.filled++;
       if (++this.sinceRow >= this.hop && this.filled === this.size) {
         this.sinceRow = 0;
-        for (let i = 0; i < this.size; i++) {
-          this.re[i] = this.ring[(this.pos + i) % this.size] * this.win[i];
-          this.im[i] = 0;
-        }
+        // oldest sample first: the ring from `pos` to the end, then from 0 to `pos`
+        const head = this.size - this.pos;
+        for (let i = 0; i < head; i++) this.re[i] = this.ring[this.pos + i] * this.win[i];
+        for (let i = head; i < this.size; i++) this.re[i] = this.ring[i - head] * this.win[i];
+        this.im.fill(0);
         fft(this.re, this.im);
         for (let k = 0; k < this.bins; k++) {
           const b = this.firstBin + k;

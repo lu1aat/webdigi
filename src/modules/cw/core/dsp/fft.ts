@@ -1,32 +1,55 @@
-/** In-place radix-2 complex FFT. `re`/`im` length must be a power of two. */
-export function fft(re: Float64Array, im: Float64Array): void {
-  const n = re.length;
+interface Tables {
+  rev: Uint32Array;
+  cos: Float64Array;
+  sin: Float64Array;
+}
+const cache = new Map<number, Tables>();
+
+/** Bit-reversal permutation and twiddle factors for one size, computed once. */
+function tables(n: number): Tables {
+  let t = cache.get(n);
+  if (t) return t;
+  const rev = new Uint32Array(n);
   for (let i = 1, j = 0; i < n; i++) {
     let bit = n >> 1;
     for (; j & bit; bit >>= 1) j ^= bit;
     j ^= bit;
+    rev[i] = j;
+  }
+  const cos = new Float64Array(n / 2);
+  const sin = new Float64Array(n / 2);
+  for (let k = 0; k < n / 2; k++) {
+    cos[k] = Math.cos((-2 * Math.PI * k) / n);
+    sin[k] = Math.sin((-2 * Math.PI * k) / n);
+  }
+  cache.set(n, (t = { rev, cos, sin }));
+  return t;
+}
+
+/** In-place radix-2 complex FFT. `re`/`im` length must be a power of two. */
+export function fft(re: Float64Array, im: Float64Array): void {
+  const n = re.length;
+  const { rev, cos, sin } = tables(n);
+  for (let i = 1; i < n; i++) {
+    const j = rev[i];
     if (i < j) {
-      [re[i], re[j]] = [re[j], re[i]];
-      [im[i], im[j]] = [im[j], im[i]];
+      const tr = re[i]; re[i] = re[j]; re[j] = tr;
+      const ti = im[i]; im[i] = im[j]; im[j] = ti;
     }
   }
   for (let len = 2; len <= n; len <<= 1) {
-    const ang = (-2 * Math.PI) / len;
-    const wr = Math.cos(ang);
-    const wi = Math.sin(ang);
+    const half = len >> 1;
+    const step = n / len;
     for (let i = 0; i < n; i += len) {
-      let cr = 1;
-      let ci = 0;
-      for (let k = 0; k < len / 2; k++) {
+      for (let k = 0, w = 0; k < half; k++, w += step) {
         const a = i + k;
-        const b = a + len / 2;
+        const b = a + half;
+        const cr = cos[w];
+        const ci = sin[w];
         const tr = re[b] * cr - im[b] * ci;
         const ti = re[b] * ci + im[b] * cr;
         re[b] = re[a] - tr; im[b] = im[a] - ti;
         re[a] += tr; im[a] += ti;
-        const t = cr * wr - ci * wi;
-        ci = cr * wi + ci * wr;
-        cr = t;
       }
     }
   }

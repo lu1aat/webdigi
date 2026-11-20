@@ -22,5 +22,5 @@
 .row-meter-peak { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: 0; }
 .row-trend { display: block; width: 100%; height: 1.5rem; }
 .alarm-bell.on { color: var(--accent); border-color: var(--accent); }
-.alarm-bell.is-sounding { background: var(--flag); border-color: var(--flag); color: #fff; }
+.alarm-bell.is-sounding { background: var(--flag-fill); border-color: var(--flag-fill); color: var(--on-fill); }
 .wide-btn { width: 100%; margin-bottom: 0.3rem; }

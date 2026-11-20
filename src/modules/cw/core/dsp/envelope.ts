@@ -9,8 +9,12 @@ export class EnvelopeDetector {
   readonly envRate: number;
   private readonly decim: number;
   private alpha: number;
-  private dPhase: number;
-  private phase = 0;
+  /** Per-sample rotation (cos, sin of the phase step) and the running phasor (cos, sin of the phase). */
+  private stepC = 1;
+  private stepS = 0;
+  private pc = 1;
+  private ps = 0;
+  private sinceNorm = 0;
   private readonly sI = new Float64Array(4);
   private readonly sQ = new Float64Array(4);
   private count = 0;
@@ -26,8 +30,14 @@ export class EnvelopeDetector {
     this.envRate = sampleRate / this.decim;
     // 4 cascaded poles narrow the -3 dB point by ~2.2x, so compensate
     this.alpha = this.alphaFor(bandwidth);
-    this.dPhase = (2 * Math.PI * freq) / sampleRate;
+    this.setStep(freq);
     this.currentFreq = freq;
+  }
+
+  private setStep(freq: number): void {
+    const d = (2 * Math.PI * freq) / this.sampleRate;
+    this.stepC = Math.cos(d);
+    this.stepS = Math.sin(d);
   }
 
   private alphaFor(bandwidth: number): number {
@@ -36,7 +46,7 @@ export class EnvelopeDetector {
 
   /** Retune the carrier on the fly (phase is continuous, so small drifts cost nothing). */
   setFrequency(freq: number): void {
-    this.dPhase = (2 * Math.PI * freq) / this.sampleRate;
+    this.setStep(freq);
     this.currentFreq = freq;
   }
 
@@ -54,10 +64,18 @@ export class EnvelopeDetector {
     const out = new Float32Array(Math.floor((this.count + x.length) / this.decim));
     let o = 0;
     for (let n = 0; n < x.length; n++) {
-      const c = Math.cos(this.phase);
-      const s = -Math.sin(this.phase);
-      this.phase += this.dPhase;
-      if (this.phase > Math.PI * 2) this.phase -= Math.PI * 2;
+      // Rotate the phasor instead of calling cos/sin per sample (this runs per carrier at the full rate).
+      const c = this.pc;
+      const s = -this.ps;
+      const sin = this.ps;
+      this.pc = c * this.stepC - sin * this.stepS;
+      this.ps = sin * this.stepC + c * this.stepS;
+      if (++this.sinceNorm >= 2048) {
+        this.sinceNorm = 0;
+        const g = 1 / Math.hypot(this.pc, this.ps);
+        this.pc *= g;
+        this.ps *= g;
+      }
       let i = x[n] * c;
       let q = x[n] * s;
       for (let k = 0; k < 4; k++) {

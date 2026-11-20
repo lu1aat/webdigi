@@ -59,13 +59,22 @@ Modules column | display (spectrum, ruler, waterfall)      <- upper, always on
                | panel of the ONE selected module           <- lower
 ```
 
-The Modules column is expanded (one bordered card per module: icon, name, on/off switch) or
-collapsed (a tile per *active* module, rules between). Clicking a card or tile selects that module
-(click again to deselect): its `panel`, if any, opens in the lower area, and its `options` expand
-on its card. Options of unselected modules stay collapsed, so only one module's controls show at a
-time. A module with only `options` (the spectrum) opens the column when its tile is clicked. State lives in
-hidden settings `ui.expanded`, `ui.selected` (`""` = first active panel, `"none"` = closed) and
-`ui.panelHeight`; each module's switch is `modules.<id>.active`.
+The Modules column is expanded (a ruled row per module: icon, name, on/off switch) or collapsed
+(a tile per *active* module). Active rows come first, highlighted with the accent (glyph and
+switch); switched-off rows are grouped at the end under "Inactive", and a row that changes group
+flashes once. Within each group the order is the column order: the module with a `display` first,
+the rest as discovered, Settings last (`main.ts`). Clicking a row or tile selects that module (click again to deselect):
+its `panel`, if any, opens in the lower area, and its `options` open inside its row, which is
+recessed with an accent edge. Options of unselected modules stay collapsed, so only one module's
+controls show at a time. A module with only `options` (the spectrum) opens the column when its tile
+is clicked. Rows and tiles are built once and patched (`renderColumn`), so focus survives updates.
+State lives in hidden settings `ui.expanded`, `ui.selected` (`""` = first active non-core panel,
+`"none"` = closed) and `ui.panelHeight`; each module's switch is `modules.<id>.active`, default
+off: a fresh session shows only the core modules (spectrum, Settings) and the display alone.
+
+Each module's icon carries a signal lamp driven by the bus, no module code needed: green for a
+moment after the module publishes `message:rx` with its id as `source`, red while it holds the
+transmitter (`ctx.output.transmit(<id>, ...)`).
 
 ## Adding a module
 
@@ -126,7 +135,8 @@ Nothing is allowed in dev (no CSP there), so test with `npm run build && npm run
 
 A theme is one CSS file, `src/themes/<id>.css`, defining every token under
 `:root[data-theme='<id>']` (copy `dark.css`, which documents each token group: `--paper*`, `--rule*`,
-`--ink*`, `--accent`, `--flag`, `--live`, `--plate*`, `--wf-*`). Files in `src/themes/` are
+`--ink*`, `--accent`, `--flag`, `--live`, `--on-fill` + `--*-fill` for solid buttons, `--plate*`,
+`--wf-*`). Text on a fill and `--ink-3` on `--paper-2` must stay at or above 4.5:1. Files in `src/themes/` are
 discovered automatically: the id is the filename, and the Theme select in Settings appears as soon
 as there are two. The `--wf-*` waterfall stops must be 6-digit hex (renderers interpolate them).
 

@@ -12,7 +12,8 @@ import { settingsModule } from './core/settings-pane'
 import type { AppContext } from './core/module'
 import { modules as userModules } from './modules'
 
-const modules = [...userModules, settingsModule]
+// Column order: the always-on display (the spectrum) first, the rest as discovered, Settings last.
+const modules = [...userModules.filter((m) => m.display), ...userModules.filter((m) => !m.display), settingsModule]
 
 async function main() {
   addMessages({ en, es })
@@ -36,7 +37,8 @@ async function main() {
     { key: 'ui.expanded', label: 'modules.title', type: 'boolean', default: true, hidden: true },
     { key: 'ui.selected', label: 'modules.title', type: 'string', default: '', hidden: true },
     { key: 'ui.panelHeight', label: 'modules.title', type: 'number', default: 380, min: 100, max: 4000, hidden: true },
-    ...modules.filter((m) => !m.core).map((m) => ({ key: `modules.${m.id}.active`, label: m.title, type: 'boolean' as const, default: true, hidden: true })),
+    // A fresh session starts with only the core modules (spectrum, settings); the user switches the rest on.
+    ...modules.filter((m) => !m.core).map((m) => ({ key: `modules.${m.id}.active`, label: m.title, type: 'boolean' as const, default: false, hidden: true })),
   ])
   modules.forEach((m) => m.settings && settings.register(m.settings))
 

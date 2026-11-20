@@ -5,6 +5,10 @@ const METER_MIN_DB = -60 // bottom of the level meter
 const METER_FALL_DB_S = 15 // how fast the held peak tick falls
 const SILENT_DB = -100 // below this RMS the input is digital silence
 const SILENT_AFTER_S = 4 // ... for this long before we say so
+const RX_HOLD_MS = 1200 // a module's RX lamp stays lit this long after its last message:rx
+const PANEL_MIN = 100 // px, lower area
+const DISPLAY_MIN = 180 // px the splitter always leaves for the display
+const NS = 'http://www.w3.org/2000/svg'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag)
@@ -13,38 +17,52 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e
 }
 
+function svg(viewBox: string, cls: string, shapes: [string, Record<string, string>][]): SVGSVGElement {
+  const s = document.createElementNS(NS, 'svg')
+  s.setAttribute('viewBox', viewBox)
+  s.setAttribute('class', cls)
+  s.setAttribute('aria-hidden', 'true')
+  for (const [tag, attrs] of shapes) {
+    const n = document.createElementNS(NS, tag)
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v)
+    s.append(n)
+  }
+  return s
+}
+
 /**
  * webDIGI identity: a dot-dash-dot glyph (the shared language of the CW and Hell digimodes)
  * next to the name. Built with DOM calls, no inline markup; colours come from theme tokens.
  */
 function logo(): HTMLElement {
-  const NS = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(NS, 'svg')
-  svg.setAttribute('viewBox', '0 0 24 24')
-  svg.setAttribute('class', 'logo-mark')
-  svg.setAttribute('aria-hidden', 'true')
-  const shape = (tag: string, attrs: Record<string, string>) => {
-    const n = document.createElementNS(NS, tag)
-    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v)
-    svg.append(n)
-  }
-  shape('rect', { width: '24', height: '24', class: 'logo-bg' })
-  shape('circle', { cx: '5.5', cy: '12', r: '2', class: 'logo-fg' })
-  shape('rect', { x: '9', y: '10', width: '7', height: '4', class: 'logo-fg' })
-  shape('circle', { cx: '19.5', cy: '12', r: '2', class: 'logo-fg' })
+  const mark = svg('0 0 24 24', 'logo-mark', [
+    ['rect', { width: '24', height: '24', class: 'logo-bg' }],
+    ['circle', { cx: '5.5', cy: '12', r: '2', class: 'logo-fg' }],
+    ['rect', { x: '9', y: '10', width: '7', height: '4', class: 'logo-fg' }],
+    ['circle', { cx: '19.5', cy: '12', r: '2', class: 'logo-fg' }],
+  ])
   const name = el('span', 'logo-name')
   name.append('web', el('b', '', 'DIGI'))
   const box = el('span', 'wordmark')
   box.setAttribute('aria-label', 'webDIGI')
-  box.append(svg, name)
+  box.append(mark, name)
   return box
+}
+
+/** A module's glyph in a square. Two-letter marks (CW) are set smaller so they fit the same square. */
+function glyph(m: Module): HTMLElement {
+  const g = m.icon ?? t(m.title).charAt(0).toUpperCase()
+  const n = el('span', 'mod-icon', g)
+  if ([...g].length > 1) n.classList.add('pair')
+  return n
 }
 
 /**
  * Page layout:
  *   top bar (capture + input)
  *   Modules column | stage: display (upper) / splitter / selected module's panel (lower)
- * The Modules column is expanded (cards with options) or collapsed (tiles of active modules).
+ * The Modules column is expanded (a row per module, options under the selected one) or collapsed
+ * (tiles of active modules). Rows and tiles are built once and patched, so focus survives updates.
  * UI state lives in hidden settings: ui.expanded, ui.selected ("" = first panel, "none" = closed), ui.panelHeight.
  */
 export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]): void {
@@ -149,6 +167,7 @@ export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]
   let clipUntil = 0
   let lastFrame = performance.now()
   let lastAria = 0
+  let meterIdle = false // the idle meter has been drawn; don't touch styles again until there is a level
   const meterFrame = (now: number) => {
     requestAnimationFrame(meterFrame)
     const dt = Math.min(0.25, (now - lastFrame) / 1000)
@@ -160,13 +179,17 @@ export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]
     silent = silentFor > SILENT_AFTER_S
     if (silent !== wasSilent) renderCurtain()
     if (!lv) {
+      if (meterIdle) return
+      meterIdle = true
       held = -Infinity
       fill.style.clipPath = 'inset(0 100% 0 0)'
       hold.style.opacity = '0'
       read.textContent = '—'
       clipLamp.classList.remove('on')
+      meter.removeAttribute('aria-valuenow')
       return
     }
+    meterIdle = false
     held = Math.max(lv.peakDb, held - METER_FALL_DB_S * dt)
     if (lv.peakDb >= -0.1) clipUntil = now + 1500
     fill.style.clipPath = `inset(0 ${((1 - frac(lv.rmsDb)) * 100).toFixed(1)}% 0 0)`
@@ -206,6 +229,8 @@ export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]
   const splitter = el('div', 'splitter')
   splitter.setAttribute('role', 'separator')
   splitter.setAttribute('aria-orientation', 'horizontal')
+  splitter.setAttribute('aria-label', t('modules.resize'))
+  splitter.setAttribute('aria-valuemin', String(PANEL_MIN))
   splitter.tabIndex = 0
   const panel = el('section', 'panel')
   const panelHead = el('header', 'panel-head')
@@ -253,7 +278,9 @@ export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]
     if (s === 'none') return ''
     const valid = (id: string) => modules.some((m) => m.id === id && (m.panel || m.options) && isOn(m))
     if (s) return valid(s) ? s : ''
-    return modules.find((m) => m.panel && isOn(m))?.id ?? '' // first run: open the first panel
+    // Nothing chosen yet: open the first active feature panel (not Settings), so a fresh session
+    // shows the display alone and the first module switched on opens by itself.
+    return modules.find((m) => m.panel && !m.core && isOn(m))?.id ?? ''
   }
   const pick = (m: Module) => S.set('ui.selected', selectedId() === m.id ? 'none' : m.id)
 
@@ -264,21 +291,28 @@ export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]
     panels.forEach((n, k) => (n.hidden = k !== id))
     const m = modules.find((x) => x.id === id)
     panelTitle.textContent = m && hasPanel ? t(m.title) : ''
-    stage.style.setProperty('--panel-h', `${S.get<number>('ui.panelHeight')}px`)
   }
   panelClose.onclick = () => S.set('ui.selected', 'none')
 
-  // splitter: drag or arrow keys
+  // splitter: drag or arrow keys, always leaving DISPLAY_MIN for the display
+  const maxPanel = () => Math.max(PANEL_MIN, Math.round(stage.getBoundingClientRect().height - DISPLAY_MIN))
+  const applyHeight = () => {
+    const h = S.get<number>('ui.panelHeight')
+    stage.style.setProperty('--panel-h', `${h}px`)
+    splitter.setAttribute('aria-valuenow', String(h))
+    splitter.setAttribute('aria-valuemax', String(maxPanel()))
+  }
   splitter.onpointerdown = (e) => {
     splitter.setPointerCapture(e.pointerId)
     let h = S.get<number>('ui.panelHeight')
+    const bottom = stage.getBoundingClientRect().bottom
+    const max = maxPanel()
     splitter.onpointermove = (ev) => {
-      const r = stage.getBoundingClientRect()
-      h = Math.round(Math.min(r.height - 180, Math.max(100, r.bottom - ev.clientY)))
+      h = Math.round(Math.min(max, Math.max(PANEL_MIN, bottom - ev.clientY)))
       stage.style.setProperty('--panel-h', `${h}px`)
     }
-    splitter.onpointerup = () => {
-      splitter.onpointermove = splitter.onpointerup = null
+    splitter.onpointerup = splitter.onpointercancel = () => {
+      splitter.onpointermove = splitter.onpointerup = splitter.onpointercancel = null
       S.set('ui.panelHeight', h)
     }
   }
@@ -286,78 +320,157 @@ export function buildShell(root: HTMLElement, ctx: AppContext, modules: Module[]
     const d = e.key === 'ArrowUp' ? 24 : e.key === 'ArrowDown' ? -24 : 0
     if (!d) return
     e.preventDefault()
-    S.set('ui.panelHeight', S.get<number>('ui.panelHeight') + d)
+    const max = maxPanel() // a height saved on a taller window is clamped first, so Down acts at once
+    S.set('ui.panelHeight', Math.min(max, Math.max(PANEL_MIN, Math.min(max, S.get<number>('ui.panelHeight')) + d)))
   }
 
   // ----------------------------------------------------------- Modules column
+  // Built once: a row per module (expanded) and a tile per module (collapsed). renderColumn()
+  // only patches classes and attributes, so a focused switch or row keeps focus when state changes.
+  const colHead = el('div', 'col-head')
+  const colTitle = el('h2', 'col-title', t('modules.title'))
+  const colToggle = el('button', 'btn icon-btn col-toggle')
+  colToggle.append(svg('0 0 16 16', 'chev', [['path', { d: 'M10 3.5 5.5 8l4.5 4.5' }]]))
+  colToggle.onclick = () => S.set('ui.expanded', !S.get<boolean>('ui.expanded'))
+  colHead.append(colTitle, colToggle)
+  const rowList = el('div', 'col-list rows')
+  // Active modules first, in column order; the switched-off ones are gathered below their own heading.
+  const onList = el('div', 'mod-group')
+  const offTitle = el('h3', 'mod-group-title', t('modules.inactive'))
+  offTitle.id = 'mod-off-title'
+  const offList = el('div', 'mod-group')
+  offList.setAttribute('role', 'group')
+  offList.setAttribute('aria-labelledby', offTitle.id)
+  rowList.append(onList, offTitle, offList)
+  const tileList = el('div', 'col-list tiles')
+  column.append(colHead, rowList, tileList)
+
+  /** A row that just changed group flashes once, so the eye can follow it to its new place. */
+  const flash = (row: HTMLElement) => {
+    row.classList.remove('moved')
+    void row.offsetWidth // restart the animation when toggled again before it ends
+    row.classList.add('moved')
+  }
+
+  interface Entry { m: Module; row: HTMLElement; main: HTMLButtonElement; box?: HTMLInputElement; tile: HTMLButtonElement; on?: boolean }
+  const entries = new Map<string, Entry>()
+  for (const m of modules) {
+    const name = t(m.title)
+    const row = el('section', 'mod')
+    const head = el('div', 'mod-head')
+    const main = el('button', 'mod-main')
+    main.append(glyph(m), el('span', 'mod-name', name))
+    main.title = t('modules.show')
+    main.onclick = () => pick(m)
+    head.append(main)
+    let box: HTMLInputElement | undefined
+    if (!m.core) {
+      const sw = el('label', 'switch')
+      sw.title = t('modules.active')
+      const input = el('input')
+      input.type = 'checkbox'
+      input.setAttribute('role', 'switch')
+      input.setAttribute('aria-label', `${t('modules.active')}: ${name}`)
+      input.onchange = () => S.set(`modules.${m.id}.active`, input.checked)
+      sw.append(input, el('span', 'track'))
+      head.append(sw)
+      box = input
+    }
+    row.append(head)
+    // Options stay in the document (hidden, not removed): settingField() stops syncing a control
+    // that is disconnected when its setting changes, e.g. the From/To fields when the spectrum pad zooms.
+    const opts = options.get(m.id)
+    if (opts) {
+      opts.hidden = true
+      row.append(opts)
+    }
+    row.addEventListener('animationend', (e) => e.animationName === 'moved' && row.classList.remove('moved'))
+    onList.append(row) // renderColumn() moves it to its group
+    const tile = el('button', 'mod-tile')
+    tile.append(glyph(m))
+    // options live in the expanded column, so a module without a panel opens it
+    tile.onclick = () => (m.panel ? pick(m) : (S.set('ui.selected', m.id), S.set('ui.expanded', true)))
+    tileList.append(tile)
+    entries.set(m.id, { m, row, main, box, tile })
+  }
+
   const renderColumn = () => {
     const expanded = S.get<boolean>('ui.expanded')
     const sel = selectedId()
     column.dataset.expanded = String(expanded)
-    column.replaceChildren()
-
-    const head = el('div', 'col-head')
-    const toggle = el('button', 'btn icon-btn', expanded ? '«' : '»')
-    toggle.title = toggle.ariaLabel = t(expanded ? 'modules.collapse' : 'modules.expand')
-    toggle.setAttribute('aria-expanded', String(expanded))
-    toggle.onclick = () => S.set('ui.expanded', !expanded)
-    if (expanded) head.append(el('h2', 'col-title', t('modules.title')))
-    head.append(toggle)
-    const list = el('div', 'col-list')
-    column.append(head, list)
-
-    for (const m of modules) {
+    colTitle.hidden = rowList.hidden = !expanded
+    tileList.hidden = expanded
+    colToggle.title = colToggle.ariaLabel = t(expanded ? 'modules.collapse' : 'modules.expand')
+    colToggle.setAttribute('aria-expanded', String(expanded))
+    // Rows are re-slotted only when their group or place changes. Moving a node blurs it, so the
+    // control that had focus gets it back (a keyboard user toggling a switch follows the row).
+    const focused = document.activeElement
+    const slot = { on: 0, off: 0 }
+    for (const e of entries.values()) {
+      const on = isOn(e.m)
+      const list = on ? onList : offList
+      const i = on ? slot.on++ : slot.off++
+      if (list.children[i] !== e.row) list.insertBefore(e.row, list.children[i] ?? null)
+      if (e.on !== undefined && e.on !== on) flash(e.row)
+      e.on = on
+    }
+    offTitle.hidden = slot.off === 0
+    if (focused instanceof HTMLElement && focused !== document.activeElement && focused.isConnected) focused.focus()
+    for (const { m, row, main, box, tile } of entries.values()) {
       const on = isOn(m)
-      const icon = m.icon ?? t(m.title).charAt(0).toUpperCase()
-
-      if (!expanded) {
-        if (!on) continue // collapsed: only active modules
-        const tile = el('button', 'mod-tile', icon)
-        tile.title = tile.ariaLabel = t(m.title)
-        tile.setAttribute('aria-pressed', String(sel === m.id))
-        // options live in the expanded column, so a module without a panel opens it
-        tile.onclick = () => (m.panel ? pick(m) : (S.set('ui.selected', m.id), S.set('ui.expanded', true)))
-        list.append(tile)
-        continue
-      }
-
-      const card = el('section', 'mod')
-      card.classList.toggle('selected', sel === m.id)
-      card.classList.toggle('off', !on)
-      const mhead = el('div', 'mod-head')
-      const selectable = on && !!(m.panel || m.options)
-      const main = el(selectable ? 'button' : 'div', 'mod-main')
-      main.append(el('span', 'mod-icon', icon), el('span', 'mod-name', t(m.title)))
-      if (selectable) {
-        main.title = t('modules.show')
-        main.setAttribute('aria-pressed', String(sel === m.id))
-        main.onclick = () => pick(m)
-      }
-      mhead.append(main)
-      if (!m.core) {
-        const sw = el('label', 'switch')
-        sw.title = t('modules.active')
-        const box = el('input')
-        box.type = 'checkbox'
-        box.setAttribute('role', 'switch')
-        box.setAttribute('aria-label', `${t('modules.active')}: ${t(m.title)}`)
-        box.checked = on
-        box.onchange = () => S.set(`modules.${m.id}.active`, box.checked)
-        sw.append(box, el('span', 'track'))
-        mhead.append(sw)
-      }
-      card.append(mhead)
+      const picked = sel === m.id
+      row.classList.toggle('selected', picked)
+      row.classList.toggle('off', !on)
+      main.disabled = !(on && (m.panel || m.options))
+      main.setAttribute('aria-pressed', String(picked))
+      if (box) box.checked = on
+      tile.hidden = !on // collapsed: only active modules
+      tile.setAttribute('aria-pressed', String(picked))
       const opts = options.get(m.id)
-      if (on && opts && sel === m.id) card.append(opts) // options are collapsed until the module is selected
-      list.append(card)
+      if (opts) opts.hidden = !(on && picked) // options are collapsed until the module is selected
     }
   }
+
+  // RX / TX lamps on each module's glyph, driven by bus traffic modules already publish:
+  // message:rx lights its source for RX_HOLD_MS, tx:state keeps the owner lit while it transmits.
+  const rxTimers = new Map<string, number>()
+  let txOwner: string | null = null
+  const signal = (id: string) => {
+    const e = entries.get(id)
+    if (!e) return
+    const s = txOwner === id ? 'tx' : rxTimers.has(id) ? 'rx' : ''
+    for (const n of [e.row, e.tile]) {
+      if (s) n.dataset.signal = s
+      else delete n.dataset.signal
+    }
+    e.tile.title = e.tile.ariaLabel = s ? `${t(e.m.title)} (${t(`modules.${s}`)})` : t(e.m.title)
+  }
+  ctx.bus.on('message:rx', ({ source }) => {
+    clearTimeout(rxTimers.get(source))
+    rxTimers.set(
+      source,
+      window.setTimeout(() => {
+        rxTimers.delete(source)
+        signal(source)
+      }, RX_HOLD_MS),
+    )
+    signal(source)
+  })
+  ctx.bus.on('tx:state', ({ owner }) => {
+    const prev = txOwner
+    txOwner = owner
+    if (prev) signal(prev)
+    if (owner) signal(owner)
+  })
 
   const refresh = () => {
     toolbarSlots.forEach((n, id) => (n.hidden = !ctx.isActive(id)))
     applyStage()
     renderColumn()
   }
-  for (const k of ['ui.expanded', 'ui.selected', 'ui.panelHeight', ...modules.filter((m) => !m.core).map((m) => `modules.${m.id}.active`)]) S.watch(k, refresh)
+  for (const k of ['ui.expanded', 'ui.selected', ...modules.filter((m) => !m.core).map((m) => `modules.${m.id}.active`)]) S.watch(k, refresh)
+  S.watch('ui.panelHeight', applyHeight) // the height only moves the splitter; nothing else re-renders
   refresh()
+  applyHeight()
+  entries.forEach((_, id) => signal(id))
 }

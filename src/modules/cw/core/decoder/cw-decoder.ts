@@ -322,11 +322,13 @@ export class CwDecoder {
     let bestScore = -Infinity;
     const lo = Math.log(1.2 / 50);
     const hi = Math.log(1.2 / 5);
+    const lxs = iv.map((x) => Math.log(x.seconds)); // the same for every grid step
     for (let g = 0; g <= 120; g++) {
       const lt = lo + ((hi - lo) * g) / 120;
       let score = 0;
-      for (const x of iv) {
-        const lx = Math.log(x.seconds);
+      for (let j = 0; j < iv.length; j++) {
+        const x = iv[j];
+        const lx = lxs[j];
         if (x.mark) {
           score += Math.max(logNormal(lx, lt, LOG_SIGMA_MARK), logNormal(lx, lt + this.dashOff, LOG_SIGMA_MARK));
         } else {

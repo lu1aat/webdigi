@@ -3,6 +3,8 @@ import type { SettingDef } from '../../core/settings'
 import { BookmarkStore, type Bookmark, harmonics, mains, DEFAULT_BW } from './store'
 import { AlarmScheduler } from './alarm'
 
+const LEVELS_EVERY_MS = 33
+
 export const K = (k: string) => `bookmarks.${k}`
 
 // Hidden: the module renders these itself in its Modules-column card.
@@ -23,6 +25,7 @@ export class BookmarksController {
   /** Last frequency clicked on a view, for "Add at ...". */
   lastHz: number | null = null
   private shown = new Set<string>()
+  private levelsAt = -Infinity
   private frameFns = new Set<(now: number) => void>()
   private pickFns = new Set<() => void>()
 
@@ -80,7 +83,11 @@ export class BookmarksController {
     const { audio, output } = this.ctx
     const on = this.ctx.isActive('bookmarks')
     const data = on ? audio.spectrum() : null
-    if (on) this.store.updateLevels(data, audio.sampleRate)
+    // Band peaks scan the spectrum once per bookmark: ~30 Hz is plenty for meters and the slowest alarm beep (90 ms).
+    if (on && now - this.levelsAt >= LEVELS_EVERY_MS) {
+      this.levelsAt = now
+      this.store.updateLevels(data, audio.sampleRate)
+    }
     this.alarm.update({
       items: on ? this.store.items : [],
       levelOf: (id) => this.store.level(id),

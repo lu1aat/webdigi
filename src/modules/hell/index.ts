@@ -195,10 +195,13 @@ function mountPanel(host: HTMLElement, ctx: AppContext): () => void {
   }
 
   let raf = 0
+  let wasHidden = false
   const frame = () => {
     raf = requestAnimationFrame(frame)
-    pumpLoopback()
-    strip?.render()
+    pumpLoopback() // keeps feeding the demodulator whether or not the panel is shown
+    if (!host.offsetParent) return void (wasHidden = true) // panel not shown: no drawing or status text
+    strip?.render(wasHidden) // a canvas that was hidden needs one full redraw when it comes back
+    wasHidden = false
     if (!sending) status.textContent = note || (ctx.audio.running ? t('hell.snr', { db: snrDb.toFixed(0) }) : t('hell.idle'))
   }
   raf = requestAnimationFrame(frame)

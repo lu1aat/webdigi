@@ -21,6 +21,8 @@ export interface Limits {
 }
 export const LIMITS: Limits = { maxMs: 10 * 60 * 1000, maxTakes: 5 }
 const MIN_SECONDS = 0.25
+/** Samples per stored chunk (128 KB): one allocation a second and a half instead of one per audio block. */
+const CHUNK = 65536
 
 /** Where raw samples come from (AudioEngine implements this). */
 export interface SampleSource {
@@ -36,6 +38,8 @@ export class TakeRecorder {
   /** Why the last start() did not start, for the view to show. */
   error: '' | 'full' | 'idle' = ''
   private chunks: Int16Array[] = []
+  private cur = new Int16Array(CHUNK)
+  private curFill = 0
   private samples = 0
   private sampleRate = 0
   private wallStart = 0
@@ -69,6 +73,8 @@ export class TakeRecorder {
       return false
     }
     this.chunks = []
+    this.cur = new Int16Array(CHUNK)
+    this.curFill = 0
     this.samples = 0
     this.sampleRate = 0
     this.wallStart = Date.now()
@@ -83,12 +89,15 @@ export class TakeRecorder {
     this.sampleRate = sampleRate
     const room = Math.round((sampleRate * this.limits.maxMs) / 1000) - this.samples
     const n = Math.min(block.length, room)
-    const pcm = new Int16Array(n)
     for (let i = 0; i < n; i++) {
-      const s = Math.max(-1, Math.min(1, block[i]))
-      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+      const v = Math.max(-1, Math.min(1, block[i]))
+      this.cur[this.curFill++] = v < 0 ? v * 0x8000 : v * 0x7fff
+      if (this.curFill === CHUNK) {
+        this.chunks.push(this.cur)
+        this.cur = new Int16Array(CHUNK)
+        this.curFill = 0
+      }
     }
-    this.chunks.push(pcm)
     this.samples += n
     if (n < block.length) this.stop() // reached the cap
   }
@@ -101,11 +110,13 @@ export class TakeRecorder {
     this.off = null
     let take: Take | null = null
     if (this.sampleRate && this.samples >= this.sampleRate * MIN_SECONDS) {
-      const blob = wavBlob(this.chunks, this.samples, this.sampleRate)
+      const blob = wavBlob([...this.chunks, this.cur.subarray(0, this.curFill)], this.samples, this.sampleRate)
       take = { id: nextId++, blob, ms: this.elapsedMs, bytes: blob.size, wallStart: this.wallStart }
       this.takes.push(take)
     }
     this.chunks = []
+    this.cur = new Int16Array(0)
+    this.curFill = 0
     this.samples = 0
     this.notify()
     return take

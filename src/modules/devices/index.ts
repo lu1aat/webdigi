@@ -6,6 +6,7 @@ const messages = {
     'devices.title': 'Devices',
     'devices.input': 'Input',
     'devices.output': 'Output',
+    'devices.defaultOutput': 'Default output',
     'devices.outputUnsupported': 'This browser can only play to the system default output.',
     'devices.test': 'Play test tone',
     'devices.refresh': 'Refresh',
@@ -35,6 +36,7 @@ const messages = {
     'devices.title': 'Dispositivos',
     'devices.input': 'Entrada',
     'devices.output': 'Salida',
+    'devices.defaultOutput': 'Salida predeterminada',
     'devices.outputUnsupported': 'Este navegador solo puede reproducir en la salida predeterminada del sistema.',
     'devices.test': 'Reproducir tono de prueba',
     'devices.refresh': 'Actualizar',
@@ -131,17 +133,18 @@ function mount(host: HTMLElement, ctx: AppContext): () => void {
   async function refresh() {
     let devs: MediaDeviceInfo[] = []
     try {
-      devs = await navigator.mediaDevices.enumerateDevices()
+      // Audio only: cameras are listed by the browser too, but nothing here can use them.
+      devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput' || d.kind === 'audiooutput')
     } catch {
       err.textContent = t('audio.err.SecurityError') // mediaDevices only exists on HTTPS / localhost
     }
-    const fill = (sel: HTMLSelectElement, kind: MediaDeviceKind, saved: string) => {
-      sel.replaceChildren(new Option(t('audio.default'), ''))
+    const fill = (sel: HTMLSelectElement, kind: MediaDeviceKind, saved: string, defaultLabel: string) => {
+      sel.replaceChildren(new Option(t(defaultLabel), ''))
       devs.filter((d) => d.kind === kind).forEach((d, i) => sel.add(new Option(d.label || `${t('devices.unnamed')} ${i + 1}`, d.deviceId)))
       sel.value = saved
     }
-    fill(inSel, 'audioinput', settings.get<string>('audio.device'))
-    fill(outSel, 'audiooutput', settings.get<string>(OUTPUT_KEY))
+    fill(inSel, 'audioinput', settings.get<string>('audio.device'), 'audio.default')
+    fill(outSel, 'audiooutput', settings.get<string>(OUTPUT_KEY), 'devices.defaultOutput')
     outSel.disabled = !output.canSelectDevice
     test.disabled = false
     note.textContent = !output.canSelectDevice ? t('devices.outputUnsupported') : devs.some((d) => d.label) ? '' : t('devices.labelsHint')

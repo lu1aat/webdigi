@@ -13,8 +13,11 @@ import './cw.css'
 
 const messages = {
   en: {
-    'cw.title': 'CW skimmer',
+    'cw.title': 'CW',
     'cw.thresh': 'Detection threshold',
+    'cw.decay': 'Carrier detection decay',
+    'cw.minHz': 'Search from (Hz)',
+    'cw.maxHz': 'Search to (Hz)',
     'cw.nb': 'Noise blanker',
     'cw.level': 'Callsign validation',
     'cw.council': 'Second look (council re-decode)',
@@ -25,8 +28,7 @@ const messages = {
     'cw.lv.normal': 'Normal',
     'cw.lv.aggressive': 'Aggressive',
     'cw.lv.paranoid': 'Paranoid',
-    'cw.hint': 'Carriers are found and decoded automatically. Click the spectrum to decode any frequency by hand. Changes to the first four settings apply when you next start listening.',
-    'cw.idle': 'Start listening to skim.',
+    'cw.idle': 'Start listening to decode.',
     'cw.status': '{n} stations · {s} s',
     'cw.stations': 'Stations',
     'cw.col.freq': 'Hz',
@@ -55,8 +57,11 @@ const messages = {
     'cw.sending': 'Transmitting…',
   },
   es: {
-    'cw.title': 'Skimmer CW',
+    'cw.title': 'CW',
     'cw.thresh': 'Umbral de detección',
+    'cw.decay': 'Decaimiento de detección',
+    'cw.minHz': 'Buscar desde (Hz)',
+    'cw.maxHz': 'Buscar hasta (Hz)',
     'cw.nb': 'Supresor de ruido impulsivo',
     'cw.level': 'Validación de indicativos',
     'cw.council': 'Segunda lectura (consejo de decoders)',
@@ -67,8 +72,7 @@ const messages = {
     'cw.lv.normal': 'Normal',
     'cw.lv.aggressive': 'Agresiva',
     'cw.lv.paranoid': 'Paranoica',
-    'cw.hint': 'Las portadoras se detectan y decodifican solas. Haz clic en el espectro para decodificar una frecuencia a mano. Los cuatro primeros ajustes se aplican al volver a escuchar.',
-    'cw.idle': 'Empieza a escuchar para hacer skimming.',
+    'cw.idle': 'Empieza a escuchar para decodificar.',
     'cw.status': '{n} estaciones · {s} s',
     'cw.stations': 'Estaciones',
     'cw.col.freq': 'Hz',
@@ -100,9 +104,13 @@ const messages = {
 
 const LEVELS: ValidationLevel[] = ['minimal', 'normal', 'aggressive', 'paranoid']
 const settings = [
-  { key: 'cw.thresh', label: 'cw.thresh', type: 'number' as const, default: 13, min: 6, max: 25, step: 1, control: 'slider' as const, unit: ' dB', hidden: true },
+  { key: 'cw.thresh', label: 'cw.thresh', type: 'number' as const, default: 16, min: 6, max: 25, step: 1, control: 'slider' as const, unit: ' dB', hidden: true },
+  // How long a carrier that stopped keying still counts as detected (the tracker's max-hold decay).
+  { key: 'cw.decay', label: 'cw.decay', type: 'number' as const, default: 0.8, min: 0.2, max: 3, step: 0.1, control: 'slider' as const, unit: ' s', hidden: true },
+  { key: 'cw.minHz', label: 'cw.minHz', type: 'number' as const, default: 200, min: 100, max: 23000, step: 10, hidden: true },
+  { key: 'cw.maxHz', label: 'cw.maxHz', type: 'number' as const, default: 3000, min: 200, max: 23000, step: 10, hidden: true },
   { key: 'cw.nb', label: 'cw.nb', type: 'boolean' as const, default: false, hidden: true },
-  { key: 'cw.level', label: 'cw.level', type: 'select' as const, default: 'normal', options: LEVELS.map((l) => ({ value: l, label: `cw.lv.${l}` })), hidden: true },
+  { key: 'cw.level', label: 'cw.level', type: 'select' as const, default: 'aggressive', options: LEVELS.map((l) => ({ value: l, label: `cw.lv.${l}` })), hidden: true },
   { key: 'cw.council', label: 'cw.council', type: 'boolean' as const, default: true, hidden: true },
   { key: 'cw.freq', label: 'cw.freq', type: 'number' as const, default: 700, min: 200, max: 23000, step: 1, hidden: true },
   { key: 'cw.txwpm', label: 'cw.txwpm', type: 'number' as const, default: 20, min: 5, max: 50, step: 1, control: 'slider' as const, unit: ' WPM', hidden: true },
@@ -219,15 +227,26 @@ function resetSkimmer(): void {
   dirty = spotsDirty = true
 }
 
+/** The skimmer's frequency range from the settings, kept at least 100 Hz wide and below Nyquist. */
+function skimRange(rate: number): { minFreq: number; maxFreq: number } {
+  const s = ctxRef.settings
+  const top = rate / 2 - 100
+  const minFreq = Math.min(s.get<number>('cw.minHz'), top - 100)
+  const maxFreq = Math.min(Math.max(s.get<number>('cw.maxHz'), minFreq + 100), top)
+  return { minFreq, maxFreq }
+}
+
 function buildSkimmer(rate: number): Skimmer {
   const s = ctxRef.settings
   skRate = rate
   return new Skimmer(rate, {
+    staggerSpawns: true,
     noiseBlanker: s.get<boolean>('cw.nb'),
     bursts: s.get<boolean>('cw.council'),
-    tracker: { thresholdDb: s.get<number>('cw.thresh') },
+    // Stricter than the library defaults: a station must persist longer (and a weak one much longer) before it is reported.
+    tracker: { thresholdDb: s.get<number>('cw.thresh'), holdSeconds: s.get<number>('cw.decay'), confirmHits: 12, weakConfirmHits: 40, weakSnrDb: 5 },
     extractor: { level: s.get<ValidationLevel>('cw.level'), db },
-    spectrogram: { minFreq: 200, maxFreq: Math.min(3000, rate / 2 - 100) },
+    spectrogram: skimRange(rate),
   })
 }
 
@@ -307,7 +326,6 @@ function renderDecoded(el: HTMLElement, chars: readonly DecodedChar[], onWord?: 
 
 function mountOptions(host: HTMLElement, ctx: AppContext): void {
   for (const d of settings) host.append(settingField(ctx.settings, d))
-  host.append(mk('p', 'hint', t('cw.hint')))
 }
 
 function mountPanel(host: HTMLElement, ctx: AppContext): () => void {
@@ -472,6 +490,7 @@ function mountPanel(host: HTMLElement, ctx: AppContext): () => void {
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
     if (now - last < 250) return // chars arrive constantly; 4 Hz is plenty for text
+    if (!host.offsetParent) return // panel not shown: skip the DOM work; `dirty` keeps the change pending
     last = now
     status.textContent = ctx.audio.running && sk ? t('cw.status', { n: channels.size, s: Math.round(sk.time) }) : t('cw.idle')
     if (dirty) (dirty = false), render()
@@ -492,6 +511,10 @@ function init(ctx: AppContext): void {
     if (ctx.isActive('cw')) feed(block, rate)
   })
   // Stopping the input or switching the module off drops the stations (and their ruler pins).
+  // The skimmer is rebuilt lazily from the settings on the next block, so a reset applies them at once.
+  for (const k of ['cw.thresh', 'cw.minHz', 'cw.maxHz', 'cw.nb', 'cw.level']) ctx.settings.watch(k, resetSkimmer)
+  // The decay applies live, so dragging its slider keeps the stations found so far.
+  ctx.settings.watch('cw.decay', (v) => sk?.tracker.setHoldSeconds(Number(v)))
   ctx.bus.on('audio:state', ({ running }) => !running && resetSkimmer())
   ctx.bus.on('module:active', ({ id, active }) => id === 'cw' && !active && resetSkimmer())
   ctx.bus.on('view:pick', ({ hz }) => {

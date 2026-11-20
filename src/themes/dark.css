@@ -19,15 +19,24 @@
   --rule-2: #4b5563;
   --ink: #e7ecf2;
   --ink-2: #a4b0bd;
-  --ink-3: #7b8794;
+  --ink-3: #8792a0; /* muted text: keep >= 4.5:1 on --paper-2 */
   --accent: #7d90ff; /* selection, active state, axes */
   --accent-soft: #232a4d;
-  --flag: #ff5a4d; /* errors, removal, recording */
-  --live: #23a05a; /* the app is listening */
+  --flag: #ff5a4d; /* errors, removal, recording; the TX lamp */
+  --live: #23a05a; /* the app is listening; the RX lamp */
   --shadow-plate: inset 0 0 0 1px #000, 0 2px 10px rgba(0, 0, 0, 0.5);
+  --shadow-float: 4px 0 18px rgba(0, 0, 0, 0.45); /* the Modules column floating over the stage */
+
+  /* solid buttons: fills dark enough for --on-fill text (>= 4.5:1), so --accent etc. can stay bright for lines */
+  --on-fill: #ffffff;
+  --accent-fill: #4458e6;
+  --live-fill: #1a7f45;
+  --flag-fill: #c8322b;
 
   /* plates: spectrum + waterfall */
   --plate: #0c1016;
+  --plate-ink: #e7ecf2; /* text and controls laid over a plate */
+  --plate-veil: rgba(12, 16, 22, 0.88); /* backing for readouts and notes over a plate */
   --plate-grid: rgba(226, 232, 240, 0.11);
   --plate-text: rgba(226, 232, 240, 0.7);
   --plate-trace: #8ea6ff;
