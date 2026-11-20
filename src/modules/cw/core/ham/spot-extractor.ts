@@ -33,6 +33,9 @@ export class SpotExtractor {
   private cur = '';
   private curConf: number[] = [];
   private weights = new Map<string, number>();
+  /** Confident sightings per base call, weighted like `weights`, with the latest full form: see `leader`. */
+  private votes = new Map<string, { weight: number; text: string; at: number }>();
+  private seq = 0;
   private reported = new Set<string>();
   private readonly o: Required<Omit<ExtractorOptions, 'db' | 'watch'>> & Pick<ExtractorOptions, 'db' | 'watch'>;
 
@@ -66,6 +69,19 @@ export class SpotExtractor {
     return hits;
   }
 
+  /**
+   * The call this carrier repeats most: the station's name. A misread of it ("TZ8X" in a run of
+   * "OZ8X") is outvoted instead of replacing it. Needs `minWeight`; a tie goes to the latest sighting.
+   */
+  get leader(): string | undefined {
+    let best: { weight: number; text: string; at: number } | undefined;
+    for (const v of this.votes.values()) {
+      if (v.weight < this.o.minWeight) continue;
+      if (!best || v.weight > best.weight || (v.weight === best.weight && v.at > best.at)) best = v;
+    }
+    return best?.text;
+  }
+
   private endToken(hits: CallHit[]): void {
     if (!this.cur) return;
     const conf = this.curConf.reduce((a, b) => a + b, 0) / this.curConf.length;
@@ -82,6 +98,10 @@ export class SpotExtractor {
     const base = splitCall(tok.text)?.base ?? tok.text;
     const w = (this.weights.get(base) ?? 0) + (afterDe ? 2 : 1);
     this.weights.set(base, w);
+    if (conf >= this.o.minConfidence) {
+      const v = this.votes.get(base);
+      this.votes.set(base, { weight: (v?.weight ?? 0) + (afterDe ? 2 : 1), text: tok.text, at: ++this.seq });
+    }
     if (w >= this.o.minWeight && conf >= this.o.minConfidence && (!this.reported.has(base) || cq)) {
       this.reported.add(base);
       hits.push({ call: tok.text, cq, confidence: conf });

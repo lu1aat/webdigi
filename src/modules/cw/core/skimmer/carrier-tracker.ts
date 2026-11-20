@@ -20,6 +20,8 @@ export interface TrackerOptions {
   retireSeconds?: number;
   /** Time constant (s) of the max-hold decay: how long a carrier that stopped keying still counts as present. */
   holdSeconds?: number;
+  /** retireSeconds for a pinned track (one the user is following), long enough to span the other side's over. */
+  pinnedRetireSeconds?: number;
   /** Peaks this many dB below a stronger peak within ghostHz are treated as key-click sidebands. */
   ghostDb?: number;
   ghostHz?: number;
@@ -62,6 +64,7 @@ export class CarrierTracker {
   private recentSpawns: Track[] = [];
   private bans: { freq: number; until: number }[] = [];
   private candidates: Candidate[] = [];
+  private pinned = new Set<number>();
   readonly tracks = new Map<number, Track>();
 
   constructor(
@@ -76,6 +79,7 @@ export class CarrierTracker {
       confirmHits: opts.confirmHits ?? 8,
       retireSeconds: opts.retireSeconds ?? 8,
       holdSeconds: opts.holdSeconds ?? 0.8,
+      pinnedRetireSeconds: opts.pinnedRetireSeconds ?? 120,
       ghostDb: opts.ghostDb ?? 20,
       ghostHz: opts.ghostHz ?? 150,
       farGhostDb: opts.farGhostDb ?? 32,
@@ -152,8 +156,9 @@ export class CarrierTracker {
 
     this.dropBursts(t, spawned);
     for (const tr of [...this.tracks.values()]) {
-      if (t - tr.lastSeen > this.o.retireSeconds) {
+      if (t - tr.lastSeen > (this.pinned.has(tr.id) ? this.o.pinnedRetireSeconds : this.o.retireSeconds)) {
         this.tracks.delete(tr.id);
+        this.pinned.delete(tr.id);
         retired.push(tr);
       }
     }
@@ -183,6 +188,13 @@ export class CarrierTracker {
   /** Forget a track without reporting it as retired. */
   drop(id: number): void {
     this.tracks.delete(id);
+    this.pinned.delete(id);
+  }
+
+  /** A pinned track is retired after pinnedRetireSeconds of silence instead of retireSeconds. */
+  pin(id: number, on = true): void {
+    if (on && this.tracks.has(id)) this.pinned.add(id);
+    else this.pinned.delete(id);
   }
 
   private nearestTrack(freq: number): Track | undefined {

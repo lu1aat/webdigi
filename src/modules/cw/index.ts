@@ -130,7 +130,8 @@ const channels = new Map<number, Channel>()
 const callOf = new Map<number, string>()
 /** Callsigns the user set by clicking a word; they win over the automatic ones. */
 const manualCall = new Map<number, string>()
-const callFor = (id: number) => manualCall.get(id) ?? callOf.get(id)
+/** The user's pick, else the call the station repeats most, else the latest spot (e.g. from the second look). */
+const callFor = (id: number) => manualCall.get(id) ?? channels.get(id)?.call ?? callOf.get(id)
 const spots: Spot[] = []
 let selected: number | null = null
 let dirty = true
@@ -159,15 +160,19 @@ function sendToCouncil(from: Skimmer, burst: Burst): void {
 }
 
 const markerId = (id: number) => `cw:${id}`
+/** The call each marker currently shows, so a change of leading call re-labels it. */
+const shownCall = new Map<number, string | undefined>()
 let hovered: number | null = null
 /** Canvas colours cannot use var(); read the theme's "listening" green when marking. */
 const liveGreen = () => getComputedStyle(document.documentElement).getPropertyValue('--live').trim() || undefined
 function mark(c: Channel): void {
   const sel = c.id === selected
+  const call = callFor(c.id)
+  shownCall.set(c.id, call)
   ctxRef.bus.emit('marker:set', {
     id: markerId(c.id),
     hz: c.track.freq,
-    label: callFor(c.id) ?? `${c.wpm ? c.wpm.toFixed(0) : '?'}`,
+    label: call ?? `${c.wpm ? c.wpm.toFixed(0) : '?'}`,
     bw: 60,
     // Selected = green; hovered (row under the pointer) = emphasised, whatever its colour.
     color: sel ? liveGreen() : undefined,
@@ -179,6 +184,9 @@ function markAll(): void {
 }
 function select(id: number | null): void {
   selected = id
+  // A station the user clicked is being followed: hold it through the other side's over instead of
+  // retiring it after a few seconds of silence. It stays held until it retires or is removed.
+  if (id !== null) sk?.pin(id)
   dirty = true
   markAll()
 }
@@ -199,6 +207,7 @@ function handle(events: ReturnType<Skimmer['process']>): void {
       if (ev.type === 'reject' || ev.channel.id !== selected) channels.delete(ev.channel.id)
       if (ev.type === 'reject' && ev.channel.id === selected) selected = null
       if (hovered === ev.channel.id) hovered = null
+      shownCall.delete(ev.channel.id)
       ctxRef.bus.emit('marker:clear', { id: markerId(ev.channel.id) })
     } else if (ev.type === 'spot') {
       callOf.set(ev.spot.channel, ev.spot.call)
@@ -209,6 +218,8 @@ function handle(events: ReturnType<Skimmer['process']>): void {
     } else if (ev.type === 'chars') {
       const text = ev.chars.map((c) => c.char).join('')
       if (text.trim()) ctxRef.bus.emit('message:rx', { source: 'cw', text, time: Date.now(), hz: ev.channel.track.freq })
+      // the call it repeats most may have changed (a misread outvoted, or a first name earned)
+      if (channels.has(ev.channel.id) && callFor(ev.channel.id) !== shownCall.get(ev.channel.id)) mark(ev.channel)
     } else if (ev.type === 'burst' && sk) {
       sendToCouncil(sk, ev.burst)
     }
@@ -219,6 +230,7 @@ function resetSkimmer(): void {
   for (const id of channels.keys()) ctxRef.bus.emit('marker:clear', { id: markerId(id) })
   sk = null
   channels.clear()
+  shownCall.clear()
   callOf.clear()
   manualCall.clear()
   selected = null
@@ -277,6 +289,7 @@ function removeStation(id: number, banSeconds = 90): void {
   manualCall.delete(id)
   if (selected === id) selected = null
   if (hovered === id) hovered = null
+  shownCall.delete(id)
   ctxRef.bus.emit('marker:clear', { id: markerId(id) })
   dirty = true
 }

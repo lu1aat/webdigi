@@ -26,6 +26,8 @@ export interface Channel {
   chars: DecodedChar[];
   /** Council re-decoding of the latest finished transmission (see `bursts`), when one was submitted. */
   refined?: DecodedChar[];
+  /** The callsign this carrier repeats most (SpotExtractor.leader), once there is one. */
+  call?: string;
 }
 
 /** A finished transmission on one carrier, with its audio, for a slower and better second look. */
@@ -305,6 +307,11 @@ export class Skimmer {
     this.events.push({ type: 'retire', channel: l.channel });
   }
 
+  /** Hold a station the user is following: its carrier is retired only after a much longer silence. */
+  pin(id: number, on = true): void {
+    this.tracker.pin(id, on);
+  }
+
   /**
    * Remove a station on the user's request: forget it without flushing text or submitting a burst, and
    * ignore its frequency for `banSeconds` so the tracker does not rediscover it at once.
@@ -385,7 +392,9 @@ export class Skimmer {
       l.channel.wpm = l.dec.wpm;
       this.events.push({ type: 'chars', channel: l.channel, chars });
     }
-    for (const h of [...l.extractor.push(chars), ...extra]) {
+    const hits = [...l.extractor.push(chars), ...extra];
+    l.channel.call = l.extractor.leader ?? l.channel.call; // a restarted channel keeps its name until it earns one again
+    for (const h of hits) {
       // one spot per call per SPOT_REPEAT_SECONDS, however often it is repeated on air
       const last = this.lastSpot.get(h.call);
       if (last !== undefined && now - last < SPOT_REPEAT_SECONDS) continue;

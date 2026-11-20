@@ -39,6 +39,16 @@ describe('SpotExtractor', () => {
     const ex = new SpotExtractor();
     expect([...feed(ex, 'PY2XYZ PY2XYZ 5NN '), ...ex.flush()].map((h) => h.call)).toEqual(['PY2XYZ']);
   });
+  it('names the station by the call it repeats most, not by its latest misread', () => {
+    const ex = new SpotExtractor();
+    feed(ex, 'CQ TZ8X ');
+    expect(ex.leader).toBeUndefined(); // one sighting away from DE is not enough
+    // received on the air: the station is OZ8X; WZ8X, OG8X and TZ8X are misreads of it
+    feed(ex, 'NTE M AN NMT ? CQ DE WZ8X OZ8X CQ C DE OZ8X OZ8X CQ CQ DE OG8X OZ8X CQ CQ TZ8X OZ8X CQ CQ DE OZ8X OZ8X CQ CQ DE OZ8X OZ8X + E AT IS E QRM TET IT TI EE IET ME MQTMN ');
+    expect(ex.leader).toBe('OZ8X');
+    feed(ex, 'CQ DE TZ8X ');
+    expect(ex.leader).toBe('OZ8X');
+  });
 });
 
 import { formatSpot, utcStamp } from '../../src/modules/cw/core/ham/spot-format';
